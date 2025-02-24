@@ -13,17 +13,15 @@ const firebaseConfig = {
     measurementId: "G-PXR951TSRB"
 };
 
-
+// Extract parameters from URL
 const urlParams = new URLSearchParams(window.location.search);
+const type = urlParams.get('type');
+const sender = urlParams.get('sender');
+const receiver = urlParams.get('receiver');
+const name = urlParams.get('name');
+const caller = urlParams.get('caller');
 
-const type = urlParams.get('type')
-
-    const sender = urlParams.get('sender');
-    const receiver = urlParams.get('receiver');
-    const name = urlParams.get('name');
-    const caller = urlParams.get('caller')
-// document.getElementById("name").innerHTML = receiver 
-
+document.getElementById("receiver").innerHTML = receiver ? receiver : caller;
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -31,9 +29,7 @@ const firestore = getFirestore(app);
 
 const servers = {
     iceServers: [
-        {
-            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-        },
+        { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
     ],
     iceCandidatePoolSize: 10,
 };
@@ -41,162 +37,159 @@ const servers = {
 // Global State
 const pc = new RTCPeerConnection(servers);
 let localStream = null;
-let remoteStream = null;
+let remoteStream = new MediaStream();
 
 // HTML elements
-const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
-const callButton = document.getElementById('callButton');
-const callInput = document.getElementById('callInput');
-const answerButton = document.getElementById('answerButton');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
+const toggleVideoButton = document.getElementById('toggleVideoButton');
+const toggleAudioButton = document.getElementById('toggleAudioButton');
+const changeSpeaker = document.getElementById('speaker');
+const changeCamera = document.getElementById('rotatecamera');
 
+// Default camera mode
+let currentFacingMode = "user"; // "user" = front, "environment" = rear
+let currentOutputDevice = "default"; // Default audio output
 
+// Start the webcam
+async function startWebcam() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode }, audio: true });
+        webcamVideo.srcObject = localStream;
+        remoteVideo.srcObject = remoteStream;
 
-localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-remoteStream = new MediaStream();
+        // Push tracks to peer connection
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-// Push tracks from local stream to peer connection
-localStream.getTracks().forEach((track) => {
-    pc.addTrack(track, localStream);
-});
+        // Pull tracks from remote stream
+        pc.ontrack = (event) => {
+            event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+        };
+    } catch (error) {
+        console.error("Error accessing camera/microphone:", error);
+    }
+}
 
-// Pull tracks from remote stream, add to video stream
-pc.ontrack = (event) => {
-    event.streams[0].getTracks().forEach((track) => {
-        remoteStream.addTrack(track);
-    });
-};
-
-webcamVideo.srcObject = localStream;
-remoteVideo.srcObject = remoteStream;
-
-callButton.disabled = false;
-answerButton.disabled = false;
-
-
-// 2. Create an offer
-async function makeCall () {
-    // Reference Firestore collections for signaling
+// 1. Call Setup (Make a Call)
+async function makeCall() {
     const callDocRef = doc(collection(firestore, 'calls'));
     const offerCandidatesRef = collection(callDocRef, 'offerCandidates');
     const answerCandidatesRef = collection(callDocRef, 'answerCandidates');
-    console.log("Clicked")
-    callInput.value = callDocRef.id;
 
-    // Get candidates for caller, save to db
+    console.log("Making a call...");
+
     pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            addDoc(offerCandidatesRef, event.candidate.toJSON());
-        }
+        if (event.candidate) addDoc(offerCandidatesRef, event.candidate.toJSON());
     };
 
-    // Create offer
     const offerDescription = await pc.createOffer();
     await pc.setLocalDescription(offerDescription);
 
-    const offer = {
-        sdp: offerDescription.sdp,
-        type: offerDescription.type,
-    };
+    await setDoc(callDocRef, { offer: { sdp: offerDescription.sdp, type: offerDescription.type } });
+    await setDoc(doc(firestore, 'users', receiver), { callid: callDocRef.id }, { merge: true });
 
-    await setDoc(callDocRef, { offer });
-
-    const receiverDocRef = doc(firestore, 'users', receiver);
-    await setDoc(receiverDocRef, { callid: callDocRef.id }, { merge: true });
-
-    // Listen for remote answer
     onSnapshot(callDocRef, (snapshot) => {
         const data = snapshot.data();
         if (!pc.currentRemoteDescription && data?.answer) {
-            const answerDescription = new RTCSessionDescription(data.answer);
-            pc.setRemoteDescription(answerDescription);
+            pc.setRemoteDescription(new RTCSessionDescription(data.answer));
         }
     });
 
-    // When answered, add candidate to peer connection
     onSnapshot(answerCandidatesRef, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                pc.addIceCandidate(candidate);
-            }
+            if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
         });
     });
 
     hangupButton.disabled = false;
-};
-
-if(type==="send"){
-    makeCall();
 }
 
-// 3. Answer the call with the unique ID
-async function answerCall () {
-
+// 2. Answer Call
+async function answerCall() {
     const senderDocRef = doc(firestore, 'users', name);
-    
-    // Fetch the call ID from sender's document
     const senderDocSnap = await getDoc(senderDocRef);
     if (!senderDocSnap.exists()) {
         console.error("Sender document does not exist!");
         return;
     }
 
-    const callId = senderDocSnap.data().callid; // Fetch call ID
+    const callId = senderDocSnap.data().callid;
     if (!callId) {
         console.error("No call ID found in sender's document!");
         return;
     }
 
-    console.log(callId);
-
+    console.log("Answering call:", callId);
     const callDocRef = doc(firestore, 'calls', callId);
     const answerCandidatesRef = collection(callDocRef, 'answerCandidates');
     const offerCandidatesRef = collection(callDocRef, 'offerCandidates');
 
     pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            addDoc(answerCandidatesRef, event.candidate.toJSON());
-        }
+        if (event.candidate) addDoc(answerCandidatesRef, event.candidate.toJSON());
     };
 
     const callData = (await getDoc(callDocRef)).data();
-
-    const offerDescription = callData.offer;
-    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+    await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
 
-    const answer = {
-        type: answerDescription.type,
-        sdp: answerDescription.sdp,
-    };
-
-    await updateDoc(callDocRef, { answer });
+    await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
 
     onSnapshot(offerCandidatesRef, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                let data = change.doc.data();
-                pc.addIceCandidate(new RTCIceCandidate(data));
-            }
+            if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
         });
     });
-};
-
-if(type==="receive"){
-    answerCall()
 }
 
-// Hang up the call
+// 3. Handle Call Type
+if (type === "send") makeCall();
+if (type === "receive") answerCall();
+
+// 4. Toggle Video
+toggleVideoButton.onclick = () => {
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        toggleVideoButton.innerHTML = videoTrack.enabled ? '<i class="fa-solid fa-video-slash"></i>' : '<i class="fa-solid fa-video"></i>';
+    }
+};
+
+// 5. Toggle Audio
+toggleAudioButton.onclick = () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        toggleAudioButton.innerHTML = audioTrack.enabled ? '<i class="fa-solid fa-microphone-slash"></i>' : '<i class="fa-solid fa-microphone"></i>';
+    }
+};
+
+// 6. Switch Camera (Front ↔ Rear)
+changeCamera.onclick = async () => {
+    currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+    await startWebcam();
+};
+
+// 7. Switch Speaker (Earpiece ↔ Loudspeaker)
+changeSpeaker.onclick = async () => {
+    const audioElement = document.getElementById("remoteVideo");
+    if (audioElement.setSinkId) {
+        currentOutputDevice = currentOutputDevice === "default" ? "speaker" : "default";
+        await audioElement.setSinkId(currentOutputDevice);
+        console.log("Audio output switched to:", currentOutputDevice);
+    } else {
+        console.warn("setSinkId() is not supported in this browser.");
+    }
+};
+
+// 8. Hang Up
 hangupButton.onclick = () => {
     pc.close();
-    webcamButton.disabled = false;
-    callButton.disabled = true;
-    answerButton.disabled = true;
-    hangupButton.disabled = true;
     localStream.getTracks().forEach(track => track.stop());
+    hangupButton.disabled = true;
 };
+
+// Start the webcam when the page loads
+startWebcam();
