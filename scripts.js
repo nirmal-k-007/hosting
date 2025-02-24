@@ -13,6 +13,18 @@ const firebaseConfig = {
     measurementId: "G-PXR951TSRB"
 };
 
+
+const urlParams = new URLSearchParams(window.location.search);
+
+const type = urlParams.get('type')
+
+    const sender = urlParams.get('sender');
+    const receiver = urlParams.get('receiver');
+    const name = urlParams.get('name');
+    const caller = urlParams.get('caller')
+// document.getElementById("name").innerHTML = receiver 
+
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
@@ -40,38 +52,37 @@ const answerButton = document.getElementById('answerButton');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
 
-// 1. Setup media sources
-webcamButton.onclick = async () => {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    remoteStream = new MediaStream();
 
-    // Push tracks from local stream to peer connection
-    localStream.getTracks().forEach((track) => {
-        pc.addTrack(track, localStream);
+
+localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+remoteStream = new MediaStream();
+
+// Push tracks from local stream to peer connection
+localStream.getTracks().forEach((track) => {
+    pc.addTrack(track, localStream);
+});
+
+// Pull tracks from remote stream, add to video stream
+pc.ontrack = (event) => {
+    event.streams[0].getTracks().forEach((track) => {
+        remoteStream.addTrack(track);
     });
-
-    // Pull tracks from remote stream, add to video stream
-    pc.ontrack = (event) => {
-        event.streams[0].getTracks().forEach((track) => {
-            remoteStream.addTrack(track);
-        });
-    };
-
-    webcamVideo.srcObject = localStream;
-    remoteVideo.srcObject = remoteStream;
-
-    callButton.disabled = false;
-    answerButton.disabled = false;
-    webcamButton.disabled = true;
 };
 
+webcamVideo.srcObject = localStream;
+remoteVideo.srcObject = remoteStream;
+
+callButton.disabled = false;
+answerButton.disabled = false;
+
+
 // 2. Create an offer
-callButton.onclick = async () => {
+async function makeCall () {
     // Reference Firestore collections for signaling
     const callDocRef = doc(collection(firestore, 'calls'));
     const offerCandidatesRef = collection(callDocRef, 'offerCandidates');
     const answerCandidatesRef = collection(callDocRef, 'answerCandidates');
-
+    console.log("Clicked")
     callInput.value = callDocRef.id;
 
     // Get candidates for caller, save to db
@@ -91,6 +102,9 @@ callButton.onclick = async () => {
     };
 
     await setDoc(callDocRef, { offer });
+
+    const receiverDocRef = doc(firestore, 'users', receiver);
+    await setDoc(receiverDocRef, { callid: callDocRef.id }, { merge: true });
 
     // Listen for remote answer
     onSnapshot(callDocRef, (snapshot) => {
@@ -114,9 +128,30 @@ callButton.onclick = async () => {
     hangupButton.disabled = false;
 };
 
+if(type==="send"){
+    makeCall();
+}
+
 // 3. Answer the call with the unique ID
-answerButton.onclick = async () => {
-    const callId = callInput.value;
+async function answerCall () {
+
+    const senderDocRef = doc(firestore, 'users', name);
+    
+    // Fetch the call ID from sender's document
+    const senderDocSnap = await getDoc(senderDocRef);
+    if (!senderDocSnap.exists()) {
+        console.error("Sender document does not exist!");
+        return;
+    }
+
+    const callId = senderDocSnap.data().callid; // Fetch call ID
+    if (!callId) {
+        console.error("No call ID found in sender's document!");
+        return;
+    }
+
+    console.log(callId);
+
     const callDocRef = doc(firestore, 'calls', callId);
     const answerCandidatesRef = collection(callDocRef, 'answerCandidates');
     const offerCandidatesRef = collection(callDocRef, 'offerCandidates');
@@ -151,6 +186,10 @@ answerButton.onclick = async () => {
         });
     });
 };
+
+if(type==="receive"){
+    answerCall()
+}
 
 // Hang up the call
 hangupButton.onclick = () => {
