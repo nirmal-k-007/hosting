@@ -1,100 +1,100 @@
 /* General Styles */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background-color: #121212;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden; /* Prevent scrolling */
+  text-align: center;
+  padding: 10px;
+}
+
+/* Video Containers */
+.videos {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Large Remote Video */
+#remoteVideo {
+  width: 100%;
+  max-width: 400px; /* Full width */
+  height: auto;
+  border-radius: 10px;
+  border: 2px solid #ffffff;
+  background-color: black;
+}
+
+/* Small Local Video (Inside Remote Video) */
+#webcamVideo {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 100px; /* Small size */
+  height: auto;
+  max-width: 25%;
+  border-radius: 8px;
+  border: 2px solid #fff;
+  background-color: black;
+}
+
+/* Buttons */
+button {
+  background-color: #1e88e5;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  margin: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 90%;
+  max-width: 300px;
+  transition: 0.3s;
+}
+
+button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+button:hover {
+  background-color: #1565c0;
+}
+
+/* Input Field */
+input {
+  width: 80%;
+  max-width: 250px;
+  padding: 10px;
+  margin: 10px;
+  font-size: 16px;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  h2, h3 {
+      font-size: 18px;
   }
-  
-  body {
-    background-color: #121212;
-    color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    overflow: hidden; /* Prevent scrolling */
-    text-align: center;
-    padding: 10px;
-  }
-  
-  /* Video Containers */
-  .videos {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    justify-content: center;
-  }
-  
-  /* Large Remote Video */
-  #remoteVideo {
-    width: 100%;
-    max-width: 400px; /* Full width */
-    height: auto;
-    border-radius: 10px;
-    border: 2px solid #ffffff;
-    background-color: black;
-  }
-  
-  /* Small Local Video (Inside Remote Video) */
-  #webcamVideo {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    width: 100px; /* Small size */
-    height: auto;
-    max-width: 25%;
-    border-radius: 8px;
-    border: 2px solid #fff;
-    background-color: black;
-  }
-  
-  /* Buttons */
+
   button {
-    background-color: #1e88e5;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    margin: 10px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    width: 90%;
-    max-width: 300px;
-    transition: 0.3s;
+      font-size: 14px;
+      padding: 10px;
   }
-  
-  button:disabled {
-    background-color: #555;
-    cursor: not-allowed;
-  }
-  
-  button:hover {
-    background-color: #1565c0;
-  }
-  
-  /* Input Field */
-  input {
-    width: 80%;
-    max-width: 250px;
-    padding: 10px;
-    margin: 10px;
-    font-size: 16px;
-    border: 2px solid #ccc;
-    border-radius: 5px;
-    text-align: center;
-  }
-  
-  /* Responsive Design */
-  @media (max-width: 600px) {
-    h2, h3 {
-        font-size: 18px;
-    }
-  
-    button {
-        font-size: 14px;
-        padding: 10px;
-    }
-  }
+}
