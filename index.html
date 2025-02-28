@@ -9,29 +9,22 @@
     <!-- Firebase SDK (Modular) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
-    <script src="https://kit.fontawesome.com/41822c9045.js" crossorigin="anonymous"></script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <div class="container">
-        <h1 id="receiver">Title</h1>
-        <div  id="speaker" class="icon">
-            <i class="fa-solid fa-headphones"></i>
-        </div>
-        <div id="rotatecamera" class="icon">
-            <i class="fa-solid fa-camera-rotate"></i>
-        </div>
-    </div>
     <div class="videos">
-        <video id="webcamVideo" autoplay playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
+        <span>
+            <video id="webcamVideo" autoplay playsinline></video>
+        </span>
+        <span>
+            <video id="remoteVideo" autoplay playsinline></video>
+        </span>
     </div>
-    <div class="buttons">
-        <button class="button" id="hangupButton" disabled><i class="fa-solid fa-phone-slash"></i></button>
-        <button class="button" id="toggleVideoButton"><i class="fa-solid fa-video-slash"></i></button>
-        <button class="button" id="toggleAudioButton"><i class="fa-solid fa-microphone-slash"></i></button>
-    </div>
+    <button id="hangupButton" disabled>Hangup</button>
+
     <script type="module" src="scripts.js"></script>
+
 </body>
 </html>
